@@ -94,7 +94,11 @@ for( my $i = 0; $i < @ip_lst; $i++){
 	};
 
 	if( $roll_lst[$i] =~ /CC(\d+)/ ){
-		get_cc_log($ip_lst[$i], $1);
+		my $temp_index = $1;
+		get_cc_log($ip_lst[$i], $temp_index);
+		if( !($roll_lst[$i] =~ /CLC/) ){
+			get_cc_log_extra($ip_lst[$i], $temp_index);
+		};
 	};
 
 	if( $roll_lst[$i] =~ /NC(\d+)/ ){
@@ -136,13 +140,56 @@ sub get_clc_log{
 	print "\nDownload Logs from CLC\n";
 	print "\n";
 
-	print "Machine $this_ip\n";
+	print "Machine $this_ip\n\n";
 	print "Retrieving Files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/cloud-*.log\n";
 
 	timed_run("scp -o StrictHostKeyChecking=no root\@$this_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/cloud-* " . $log_dir . $this_ip . "_CLC/" , 60);
 	check_timed_run("cloud-output.log from $this_ip");
 
+
+	###	ADDED 122911
+	print "Retrieving Files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/db*\n";
+
+	timed_run("scp -o StrictHostKeyChecking=no root\@$this_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/db* " . $log_dir . $this_ip . "_CLC/" , 60);
+
+        my $rc = $? >> 8;
+
+        if( $rc == 1 ){
+                print "\n";
+                print "No db* files\n";
+                print "\n";
+        };
+
+	###	ADDED 122911
+	print "Retrieving Files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/startup.log\n";
+
+	timed_run("scp -o StrictHostKeyChecking=no root\@$this_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/startup.log " . $log_dir . $this_ip . "_CLC/" , 60);
+
+        $rc = $? >> 8;
+
+        if( $rc == 1 ){
+                print "\n";
+                print "No startup.log file\n";
+                print "\n";
+        };
+
+	###	ADDED 122911
+	print "Retrieving Files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/euca_imager.log\n";
+
+	timed_run("scp -o StrictHostKeyChecking=no root\@$this_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/euca_imager.log " . $log_dir . $this_ip . "_CLC/" , 60);
+
+        $rc = $? >> 8;
+
+        if( $rc == 1 ){
+                print "\n";
+                print "No euca_imager.log file\n";
+                print "\n";
+        };
+
+
 	get_hprof_file($this_ip, $log_dir . $this_ip . "_CLC/");
+
+	get_sys_log_files($this_ip, $log_dir . $this_ip . "_CLC/");
 
 	return 0;
 };
@@ -163,21 +210,76 @@ sub get_cc_log{
 	print "\nDownload Logs from CC$group\n";
 	print "\n";
 
-	print "Machine $my_cc_ip\n";
+	print "Machine $my_cc_ip\n\n";
 	print "Retrieving Files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/cc.log\n";
 	
 	timed_run("scp -o StrictHostKeyChecking=no root\@$my_cc_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/cc* " . $log_dir . $my_cc_ip . "_CC" . $group . "/", 60);
 	check_timed_run("cc.log from $cc_ip");
+
+	print "Retrieving Files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/httpd-cc_error_log\n";
+	
+	timed_run("scp -o StrictHostKeyChecking=no root\@$my_cc_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/httpd-cc_error_log* " . $log_dir . $my_cc_ip . "_CC" . $group . "/", 60);
+	check_timed_run("httpd-cc_error_log from $cc_ip");
 
 	print "Retrieving Files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/axis2c.log\n";
 	
 	timed_run("scp -o StrictHostKeyChecking=no root\@$my_cc_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/axis2c.log " . $log_dir . $my_cc_ip . "_CC" . $group . "/", 60);
 	check_timed_run("axis2c.log from $cc_ip");
 
+	get_sys_log_files($this_ip, $log_dir . $this_ip . "_CC" . $group );
 
 	return 0;
 
 };
+
+
+sub get_cc_log_extra{
+
+	my $this_ip = shift @_;
+        my $this_group = shift @_;
+
+        my $group = sprintf("%02d", $this_group);
+
+        my $my_cc_ip = $this_ip;
+
+        #Grabbing CC Log
+        system( "mkdir -p $log_dir" . $my_cc_ip . "_CC" . $group );
+
+
+	print "\nDownload Extra Logs from CC$group\n";
+	print "\n";
+
+	print "Machine $this_ip\n\n";
+	print "Retrieving Files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/cloud-*\n";
+
+	timed_run("scp -o StrictHostKeyChecking=no root\@$this_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/cloud-* " . $log_dir . $this_ip . "_CC" . $group . "/", 60);
+
+	my $rc = $? >> 8;
+
+        if( $rc == 1 ){
+                print "\n";
+                print "No cloud-* files\n";
+                print "\n";
+        };
+
+	###	ADDED 122911
+	print "Retrieving Files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/euca_imager.log\n";
+
+	timed_run("scp -o StrictHostKeyChecking=no root\@$this_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/euca_imager.log " . $log_dir . $this_ip . "_CC" . $group . "/" , 60);
+
+	$rc = $? >> 8;
+
+        if( $rc == 1 ){
+                print "\n";
+                print "No euca_imager.log file\n";
+                print "\n";
+        };
+
+	return 0;
+};
+
+
+
 
 sub get_nc_log{
 
@@ -194,16 +296,23 @@ sub get_nc_log{
 	print "\nDownload Logs from NC$group\n";
 	print "\n";
 
-	print "Machine $my_nc_ip\n";
+	print "Machine $my_nc_ip\n\n";
 	print "Retrieving Files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/nc.log\n";
 	
 	timed_run("scp -o StrictHostKeyChecking=no root\@$my_nc_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/nc* " . $log_dir . $my_nc_ip . "_NC" . $group  . "/", 60);
 	check_timed_run("nc.log from $my_nc_ip");
 
+	print "Retrieving Files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/httpd-nc_error_log\n";
+	
+	timed_run("scp -o StrictHostKeyChecking=no root\@$my_nc_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/httpd-nc_error_log* " . $log_dir . $my_nc_ip . "_NC" . $group  . "/", 60);
+	check_timed_run("httpd-nc_error_log from $my_nc_ip");
+
 	print "Retrieving Files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/axis2c.log\n";
 	
 	timed_run("scp -o StrictHostKeyChecking=no root\@$my_nc_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/axis2c.log " . $log_dir . $my_nc_ip . "_NC" . $group  . "/", 60);
 	check_timed_run("axis2c.log from $my_nc_ip");
+
+	get_sys_log_files($this_ip, $log_dir . $this_ip . "_NC" . $group );
 
 	return 0;
 };
@@ -225,13 +334,28 @@ sub get_sc_log{
 	print "\nDownload Logs from SC$group\n";
 	print "\n";
 
-	print "Machine $my_sc_ip\n";
+	print "Machine $my_sc_ip\n\n";
 	print "Retrieving Files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/cloud-*.log\n";
 	
 	timed_run("scp -o StrictHostKeyChecking=no root\@$my_sc_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/cloud-* " . $log_dir . $my_sc_ip . "_SC" . $group  . "/", 60);
 	check_timed_run("sc.log from $my_sc_ip");
 
-	get_hprof_file($this_ip, $log_dir . $this_ip . "_SC/");
+	###	ADDED 122911
+	print "Retrieving Files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/sc-stats.log\n";
+
+	timed_run("scp -o StrictHostKeyChecking=no root\@$my_sc_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/sc-stats.log " . $log_dir . $my_sc_ip . "_SC" . $group  . "/", 60);
+
+        my $rc = $? >> 8;
+
+        if( $rc == 1 ){
+                print "\n";
+                print "No sc-stats.log file\n";
+                print "\n";
+        };
+
+	get_hprof_file($this_ip, $log_dir . $this_ip . "_SC" . $group );
+
+	get_sys_log_files($this_ip, $log_dir . $this_ip . "_SC" . $group );
 
 	return 0;
 };
@@ -247,13 +371,29 @@ sub get_ws_log{
 	print "\nDownload Logs from WALRUS\n";
 	print "\n";
 
-	print "Machine $this_ip\n";
+	print "Machine $this_ip\n\n";
 	print "Retrieving Files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/cloud-*.log\n";
 
 	timed_run("scp -o StrictHostKeyChecking=no root\@$this_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/cloud-* " . $log_dir . $this_ip . "_WS/" , 60);
 	check_timed_run("cloud-output.log from $this_ip");
 
+
+	###	ADDED 122911
+	print "Retrieving Files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/walrus-stats.log\n";
+
+	timed_run("scp -o StrictHostKeyChecking=no root\@$this_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/walrus-stats.log " . $log_dir . $this_ip . "_WS/" , 60);
+
+        my $rc = $? >> 8;
+
+        if( $rc == 1 ){
+                print "\n";
+                print "No walrus-stats.log file\n";
+                print "\n";
+        };
+
+
 	get_hprof_file($this_ip, $log_dir . $this_ip . "_WS/");
+	get_sys_log_files($this_ip, $log_dir . $this_ip . "_WS/");
 
 	return 0;
 };
@@ -263,7 +403,7 @@ sub get_hprof_file{
 	my $location = shift @_;
 
 	print "\n";
-	print "Machine $this_ip\n";
+	print "Machine $this_ip\n\n";
 	print "Trying to Retrieve *.hprof files $ENV{'EUCALYPTUS'}/var/log/eucalyptus/*.hprof\n";
 
         timed_run("scp -o StrictHostKeyChecking=no root\@$this_ip:$ENV{'EUCALYPTUS'}/var/log/eucalyptus/*.hprof $location" , 120);
@@ -279,6 +419,33 @@ sub get_hprof_file{
 		print "No *.hprof files\n";
 		print "\n";
 	};
+
+	return 0;
+};
+
+
+sub get_sys_log_files{
+	my $this_ip = shift @_;
+	my $location = shift @_;
+
+	print "\n";
+	print "Machine $this_ip\n\n";
+
+	print "Trying to Retrieve Sys Log Files /var/log/messages*\n";
+        timed_run("scp -o StrictHostKeyChecking=no root\@$this_ip:/var/log/messages* $location" , 120);
+	print "\n";
+
+	print "Trying to Retrieve Sys Log Files /var/log/debug*\n";
+        timed_run("scp -o StrictHostKeyChecking=no root\@$this_ip:/var/log/debug* $location" , 120);
+	print "\n";
+
+	print "Trying to Retrieve Sys Log Files /var/log/kern*\n";
+        timed_run("scp -o StrictHostKeyChecking=no root\@$this_ip:/var/log/kern* $location" , 120);
+	print "\n";
+
+	print "Trying to Retrieve Sys Log Files /var/log/daemon*\n";
+	timed_run("scp -o StrictHostKeyChecking=no root\@$this_ip:/var/log/daemon* $location" , 120);
+	print "\n";
 
 	return 0;
 };
